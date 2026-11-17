@@ -1,12 +1,12 @@
 import 'dart:convert';
-import 'package:esilv_shop/model/cart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart';
-import 'package:provider/provider.dart'; // <--- AJOUTE CETTE LIGNE
 import '../model/product.dart';
+import '../model/cart.dart'; // Importe ton fichier cart.dart contenant le cartProvider
 
-class ListProductsPage extends StatelessWidget {
+class ListProductsPage extends ConsumerWidget {
   final Function(Product) onAddToCart;
 
   const ListProductsPage({
@@ -15,16 +15,20 @@ class ListProductsPage extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // On écoute le cartProvider pour récupérer la taille du panier pour le badge
+    final cartProducts = ref.watch(cartProvider);
+
     return Scaffold(
       appBar: AppBar(
-
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text('E-Commerce'),
         actions: [
           IconButton(
-            icon:  Badge.count(child: Icon(Icons.shopping_cart),
-            count: context.watch<Cart>().products.length),
+            icon: Badge.count(
+              child: const Icon(Icons.shopping_cart),
+              count: cartProducts.length,
+            ),
             onPressed: () {
               context.go('/cart');
             },

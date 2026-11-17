@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../model/cart.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../model/product.dart';
+import '../model/cart.dart'; // Importe ton fichier cart.dart
 
-class DetailProductPage extends StatelessWidget {
+class DetailProductPage extends ConsumerWidget {
   final Product product;
   final Function(Product) onAddToCart;
 
@@ -14,9 +14,10 @@ class DetailProductPage extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    // Vérifie si le produit est déjà présent dans le panier via Provider
-    final isInCart = context.watch<Cart>().products.any((p) => p.id == product.id);
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 1. On écoute le cartProvider généré pour récupérer la liste des produits
+    final cartProducts = ref.watch(cartProvider);
+    final isInCart = cartProducts.any((p) => p.id == product.id);
 
     return Scaffold(
       appBar: AppBar(
@@ -105,8 +106,16 @@ class DetailProductPage extends StatelessWidget {
               width: double.infinity,
               child: FilledButton(
                 onPressed: () {
-                  // Action d'ajout au panier
-                  onAddToCart(product);
+                  // 2. On appelle la méthode add via le notifier du cartProvider
+                  ref.read(cartProvider.notifier).add(product);
+
+                  // Optionnel : afficher une SnackBar
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${product.title} ajouté au panier !'),
+                      duration: const Duration(seconds: 1),
+                    ),
+                  );
                 },
                 child: const Text("Ajouter au panier"),
               ),
