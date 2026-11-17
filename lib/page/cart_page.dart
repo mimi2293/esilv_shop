@@ -1,86 +1,95 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../model/cart.dart';
-import '../model/product.dart';
 
-class CartPage extends StatelessWidget {
+class CartPage extends ConsumerWidget {
   const CartPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final cart = context.watch<Cart>();
-    final cartProducts = cart.products;
-    double totalPrice = cartProducts.fold(0, (sum, item) => sum + item.price);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cartProducts = ref.watch(cartProvider);
+    final total = ref.read(cartProvider.notifier).priceInEuros;
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text('Panier Flutter Sales'),
+        title: const Text('Panier Esilv Shop'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Row(
+      body: Column(
+        children: [
+          // Total en haut du panier
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  "Votre panier total est de",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                const Text("Votre panier total est de"),
                 Text(
-                  "${totalPrice.toStringAsFixed(2)}€",
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.cyan,
-                  ),
+                  total,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
-            const Divider(height: 30),
-            Expanded(
-              child: cartProducts.isEmpty
-                  ? const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text("Votre panier est actuellement vide"),
-                  SizedBox(height: 10),
-                  Icon(
-                    Icons.shopping_cart_outlined,
-                    size: 48,
-                    color: Colors.black54,
+          ),
+
+          // Contenu du panier (Expanded car ListView dans une Column)
+          Expanded(
+            child: cartProducts.isEmpty
+                ? const Center(
+              child: Text(
+                'Votre panier est vide',
+                style: TextStyle(fontSize: 18),
+              ),
+            )
+                : ListView.builder(
+              itemCount: cartProducts.length,
+              itemBuilder: (context, index) {
+                final product = cartProducts[index];
+                return ListTile(
+                  leading: Image.network(
+                    product.image,
+                    width: 50,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) =>
+                    const Icon(Icons.image_not_supported),
                   ),
-                ],
-              )
-                  : ListView.builder(
-                itemCount: cartProducts.length,
-                itemBuilder: (context, index) {
-                  final product = cartProducts[index];
-                  return ListTile(
-                    leading: SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: Image.network(product.image, fit: BoxFit.contain),
-                    ),
-                    title: Text(
-                      product.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(product.getPrice()),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () {
-                        context.read<Cart>().remove(product);
-                      },
-                    ),
+                  title: Text(
+                    product.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    product.getPrice(),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  trailing: TextButton(
+                    onPressed: () =>
+                        ref.read(cartProvider.notifier).remove(product),
+                    child: const Text("RETIRER"),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Bouton Commander
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: cartProducts.isEmpty
+                    ? null // désactivé si panier vide
+                    : () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Commande envoyée !")),
                   );
                 },
+                child: const Text("Commander"),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

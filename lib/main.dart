@@ -4,6 +4,7 @@ import 'app.dart';
 
 void main() {
   runApp(
+    // ProviderScope : stocke tous les providers Riverpod (panier, produits)
     const ProviderScope(
       child: EsilvShop(),
     ),

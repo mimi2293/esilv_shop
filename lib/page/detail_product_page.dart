@@ -1,23 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../model/cart.dart';
 import '../model/product.dart';
-import '../model/cart.dart'; // Importe ton fichier cart.dart
 
 class DetailProductPage extends ConsumerWidget {
   final Product product;
-  final Function(Product) onAddToCart;
 
   const DetailProductPage({
     super.key,
     required this.product,
-    required this.onAddToCart,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 1. On écoute le cartProvider généré pour récupérer la liste des produits
+    // On surveille le panier pour savoir si ce produit y est déjà
     final cartProducts = ref.watch(cartProvider);
     final isInCart = cartProducts.any((p) => p.id == product.id);
+    final rate = product.rating.rate;
 
     return Scaffold(
       appBar: AppBar(
@@ -32,31 +31,71 @@ class DetailProductPage extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Image
             Center(
               child: SizedBox(
                 height: 250,
-                child: product.image.isNotEmpty
-                    ? Image.network(
+                child: Image.network(
                   product.image,
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) =>
                   const Icon(Icons.image_not_supported, size: 100),
-                )
-                    : const Icon(Icons.image, size: 100),
+                ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+
+            // Note : étoiles + "3.9/5"
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Chip(
-                  label: Text(
-                    product.category.toUpperCase(),
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                for (int i = 1; i <= 5; i++)
+                  Icon(
+                    rate >= i
+                        ? Icons.star
+                        : (rate >= i - 0.5
+                        ? Icons.star_half
+                        : Icons.star_border),
+                    color: Colors.amber,
+                    size: 20,
                   ),
-                  backgroundColor: Colors.cyan,
+                const SizedBox(width: 8),
+                Text("$rate/5"),
+                const SizedBox(width: 4),
+                Text(
+                  "(${product.rating.count} avis)",
+                  style: const TextStyle(color: Colors.grey),
                 ),
-                // Affichage conditionnel du Chip si le produit est dans le panier
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Titre + prix sur la même ligne
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    product.title,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  product.getPrice(),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Catégorie + "Dans le panier"
+            Wrap(
+              spacing: 8,
+              children: [
+                Chip(label: Text(product.category.toUpperCase())),
                 if (isInCart)
                   const Chip(
                     label: Text("Dans le panier"),
@@ -65,51 +104,21 @@ class DetailProductPage extends ConsumerWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 10),
-            Text(
-              product.title,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              product.getPrice(),
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.cyan,
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Divider(),
-            const SizedBox(height: 10),
-            const Text(
-              "Description :",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
+
+            // Description
             Text(
               product.description,
-              style: const TextStyle(
-                fontSize: 15,
-                height: 1.4,
-                color: Colors.black87,
-              ),
+              style: const TextStyle(fontSize: 15, height: 1.4),
             ),
             const SizedBox(height: 30),
+
+            // Bouton Ajouter
             SizedBox(
               width: double.infinity,
-              child: FilledButton(
+              child: OutlinedButton(
                 onPressed: () {
-                  // 2. On appelle la méthode add via le notifier du cartProvider
                   ref.read(cartProvider.notifier).add(product);
-
-                  // Optionnel : afficher une SnackBar
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('${product.title} ajouté au panier !'),
@@ -117,7 +126,7 @@ class DetailProductPage extends ConsumerWidget {
                     ),
                   );
                 },
-                child: const Text("Ajouter au panier"),
+                child: const Text("Ajouter"),
               ),
             ),
           ],

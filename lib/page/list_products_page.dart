@@ -1,23 +1,19 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart';
+import '../model/cart.dart';
 import '../model/product.dart';
-import '../model/cart.dart'; // Importe ton fichier cart.dart contenant le cartProvider
+import '../model/products_provider.dart';
 
 class ListProductsPage extends ConsumerWidget {
-  final Function(Product) onAddToCart;
-
-  const ListProductsPage({
-    super.key,
-    required this.onAddToCart,
-  });
+  const ListProductsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // On écoute le cartProvider pour récupérer la taille du panier pour le badge
+    // watch → la page se redessine quand le panier change (badge)
     final cartProducts = ref.watch(cartProvider);
+    // watch → état du chargement des produits (loading / error / data)
+    final productsAsync = ref.watch(productsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -26,65 +22,70 @@ class ListProductsPage extends ConsumerWidget {
         actions: [
           IconButton(
             icon: Badge.count(
-              child: const Icon(Icons.shopping_cart),
               count: cartProducts.length,
+              isLabelVisible: cartProducts.isNotEmpty,
+              child: const Icon(Icons.shopping_cart),
             ),
-            onPressed: () {
-              context.go('/cart');
-            },
+            onPressed: () => context.go('/cart'),
           ),
         ],
       ),
-      body: FutureBuilder<List<Product>>(
-        future: fetchProducts(),
-        builder: (context, asyncSnapshot) {
-          if (asyncSnapshot.hasData && asyncSnapshot.data != null) {
-            final products = asyncSnapshot.data!;
-            return ListView.builder(
-              itemCount: products.length,
-              itemBuilder: (BuildContext context, int index) => ListTile(
-                onTap: () {
-                  context.go('/product/${products[index].id}', extra: products[index]);
+      body: productsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error, color: Colors.red, size: 48),
+              const SizedBox(height: 8),
+              Text("Erreur : $error"),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => ref.invalidate(productsProvider),
+                child: const Text("Réessayer"),
+              ),
+            ],
+          ),
+        ),
+        data: (products) => ListView.builder(
+          itemCount: products.length,
+          itemBuilder: (BuildContext context, int index) {
+            final Product product = products[index];
+            return ListTile(
+              onTap: () => context.go('/product/${product.id}', extra: product),
+              leading: Image.network(
+                product.image,
+                width: 80,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) =>
+                const Icon(Icons.image_not_supported),
+              ),
+              title: Text(
+                product.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                product.getPrice(),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              trailing: TextButton(
+                onPressed: () {
+                  // read → on agit une fois (pas besoin de surveiller)
+                  ref.read(cartProvider.notifier).add(product);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${product.title} ajouté !'),
+                      duration: const Duration(seconds: 1),
+                    ),
+                  );
                 },
-                title: Text(
-                  products[index].title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(
-                  products[index].getPrice(),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                leading: Image.network(
-                  products[index].image,
-                  width: 80,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) =>
-                  const Icon(Icons.image_not_supported),
-                ),
-                trailing: TextButton(
-                  onPressed: () {
-                    onAddToCart(products[index]);
-                  },
-                  child: Text("Ajouter".toUpperCase()),
-                ),
+                child: const Text("AJOUTER"),
               ),
             );
-          }
-          return const Center(child: CircularProgressIndicator());
-        },
+          },
+        ),
       ),
     );
-  }
-
-  Future<List<Product>> fetchProducts() async {
-    final response = await get(Uri.parse("https://fakestoreapi.com/products"));
-    if (response.statusCode == 200) {
-      final List<dynamic> productsJson = json.decode(response.body);
-      return productsJson
-          .map((product) => Product.fromMap(product as Map<String, dynamic>))
-          .toList();
-    }
-    return Future.error("Erreur de connexion");
   }
 }
